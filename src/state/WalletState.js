@@ -69,7 +69,7 @@ class WalletState {
                     SwapRouter: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
                     logo: '',
                 }],
-            Common: '0x5e43d6dBdF6CEa7dbdBfF21168f1C8fCcF57161B',
+            Common: '0x4b860FCC0B41283132f4792AD91038DC211831C1',
         },
     }
     wallet = {
