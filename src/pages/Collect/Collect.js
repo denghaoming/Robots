@@ -20,10 +20,10 @@ class Collect extends Component {
         wallets: [],
         address: [],
         amountIn: null,
-        tokenIn: WalletState.config.USDT,
+        tokenIn: WalletState.configs.BSC.USDT,
         collectAccount: 0,
-        tmpRpc: WalletState.config.RPC,
-        rpcUrl: WalletState.config.RPC,
+        tmpRpc: WalletState.configs.BSC.RPC,
+        rpcUrl: WalletState.configs.BSC.RPC,
         to: null,
     }
 

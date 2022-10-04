@@ -739,7 +739,7 @@ class Swap extends Component {
     //选择交易所
     selDex(index, e) {
         this.clearRefreshTokenPriceInterval();
-        this.state({
+        this.setState({
             swapRouter: this.state.chainConfig.Dexs[index].SwapRouter,
         })
     }
