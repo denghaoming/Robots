@@ -6,7 +6,7 @@ class WalletState {
         //VipSale合约调用的Rpc，BSC链的RPC，如果Rpc不可用会影响功能，需要设置为可修改的
         CheckVipRpc:'https://bsc-dataseed1.binance.org/',
         //支持的链
-        chains: ['Heco', 'BSC'],
+        chains: ['Heco', 'BSC','Ethereum'],
         //HT链配置信息
         Heco: {
             chain: 'Heco',
@@ -70,6 +70,40 @@ class WalletState {
                     logo: '',
                 }],
             Common: '0x4b860FCC0B41283132f4792AD91038DC211831C1',
+        },
+        //Ethereum链配置信息
+        Ethereum: {
+            chain: 'Ethereum',
+            ChainId: 1,
+            Symbol: 'ETH',
+            RPC: 'https://ethjeqd0430103d.swtc.top/',
+            Browser: 'https://etherscan.io/',
+            USDT: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+            Tokens: [{
+                Symbol: 'ETH',
+                address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+                decimals: 18,
+            }, {
+                Symbol: 'USDT',
+                address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                decimals: 6,
+            }, {
+                Symbol: 'USDC',
+                address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                decimals: 6,
+            }],
+            Dexs: [
+                {
+                    name: 'UniSwapV2',
+                    SwapRouter: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+                    logo: '',
+                }, {
+                    name: 'SushiSwap',
+                    SwapRouter: '0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F',
+                    logo: '',
+                },],
+            Common: '0x1453027045D7545260e309A82f48b123c32f5838',
         },
     }
     wallet = {
