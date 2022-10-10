@@ -40,6 +40,7 @@ class WalletState {
                     logo: '',
                 },],
             Common: '0x5e43d6dBdF6CEa7dbdBfF21168f1C8fCcF57161B',
+            MultiSend:'0x1453027045D7545260e309A82f48b123c32f5838',
         },
         //BSC链配置信息
         BSC: {

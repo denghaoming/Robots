@@ -11,6 +11,7 @@ import More from './pages/More/More'
 import Swap from './pages/Swap/Swap'
 import Collect from './pages/Collect/Collect'
 import Vip from './pages/Vip/Vip'
+import MultiSend from './pages/MultiSend/MultiSend'
 
 class App extends Component {
     state = { account: null, chainId: null, shortAccount: null }
@@ -78,6 +79,7 @@ class App extends Component {
                             <Route path="/more" exact element={<More />}></Route>
                             <Route path="/swap" exact element={<Swap />}></Route>
                             <Route path="/collect" exact element={<Collect />}></Route>
+                            <Route path="/multiSend" exact element={<MultiSend />}></Route>
                         </Routes>
                     </div>
                     <Tabs></Tabs>

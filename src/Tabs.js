@@ -24,12 +24,14 @@ class Tabs extends Component {
     }
 
     setSelTab() {
-        let index = 3;
+        let index = 4;
         let pathname = window.location.pathname;
           if ("/vip" == pathname) {
             index = 1;
         } else if ('/createWallets' == pathname) {
             index = 2;
+        }else if ('/multiSend' == pathname) {
+            index = 3;
         } else if ('/' == pathname) {
             index = 0;
         }
@@ -64,10 +66,13 @@ class Tabs extends Component {
                 <div className={this.getTabStyle(1)} onClick={this.routerTo.bind(this, '/vip')}>
                     <div>VIP</div>
                 </div>
-                <div className={this.getTabStyle(2)} onClick={this.routerTo.bind(this, '/createWallets')}>
+                <div className={this.getTabStyle(2)} onClick={this.routerTo.bind(this, '/multiSend')}>
+                    <div>批量转账</div>
+                </div>
+                <div className={this.getTabStyle(3)} onClick={this.routerTo.bind(this, '/createWallets')}>
                     <div>创建钱包</div>
                 </div>
-                <div className={this.getTabStyle(3)} onClick={this.routerTo.bind(this, '/more')}>
+                <div className={this.getTabStyle(4)} onClick={this.routerTo.bind(this, '/more')}>
                     <div>更多</div>
                 </div>
             </div>
