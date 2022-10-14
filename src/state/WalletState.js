@@ -71,6 +71,7 @@ class WalletState {
                     logo: '',
                 }],
             Common: '0x4b860FCC0B41283132f4792AD91038DC211831C1',
+            MultiSend:'0xBE9f4f99E4FE188428188763EcD53715d713D226',
         },
         //Ethereum链配置信息
         Ethereum: {
@@ -105,6 +106,7 @@ class WalletState {
                     logo: '',
                 },],
             Common: '0x1453027045D7545260e309A82f48b123c32f5838',
+            MultiSend:'0xd85495924f70046723Ab6BE850a22B15dF9b2c53',
         },
     }
     wallet = {

@@ -7,6 +7,7 @@ import "../ImportVip/ImportVip.css"
 import '../Token/Token.css'
 import { CSVLink, CSVDownload } from "react-csv";
 import Header from '../Header';
+import { ethers } from 'ethers';
 
 class CreateWallet extends Component {
     state = {
@@ -67,6 +68,27 @@ class CreateWallet extends Component {
         }
     }
 
+    async createWallet2() {
+        //拿到生成的钱包信息
+        var wallet = ethers.Wallet.createRandom();
+
+        //获取助记词
+        var mnemonic = wallet.mnemonic;
+        console.log("钱包助记词：", mnemonic)
+
+        //获取path
+        var path = wallet.path;
+        console.log("钱包path：", path)
+
+        //获取钱包的私钥
+        var privateKey = wallet.privateKey;
+        console.log("钱包私钥：", privateKey)
+
+        //获取钱包地址
+        var address = wallet.address;
+        console.log("钱包地址：", address)
+    }
+
     render() {
         return (
             <div className="Token ImportVip">
@@ -76,6 +98,10 @@ class CreateWallet extends Component {
                 <div className="button ModuleTop" onClick={this.createWallet}>
                     创建钱包
                 </div>
+                <div className="button ModuleTop" onClick={this.createWallet2.bind(this)}>
+                    创建钱包2
+                </div>
+                
                 <CSVLink className="button ModuleTop" data={this.state.wallets} filename={this.filename}>
                     导出钱包
                 </CSVLink>
