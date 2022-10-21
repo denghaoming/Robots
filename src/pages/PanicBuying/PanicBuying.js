@@ -14,7 +14,7 @@ import Header from '../Header';
 import { showFromWei, toWei, showFromWeiMore, toWeiMore } from '../../utils';
 import BN from 'bn.js'
 
-class Swap extends Component {
+class PanicBuying extends Component {
     state = {
         chainId: '',
         account: '',
@@ -42,12 +42,10 @@ class Swap extends Component {
         tokenOut: null,
         //输入框代币合约对应的代币信息
         tokenOutInfo: {},
-        //挂单价格
-        priceInput: null,
         //交易数量
         amountIn: null,
-        //交易滑点，默认20%
-        slige: null,
+        //兑换接收代币数量
+        receiveAmount: null,
         //gas倍数，默认1倍
         gasMulti: null,
         //路由
@@ -56,6 +54,16 @@ class Swap extends Component {
         CheckVipRpc: WalletState.configs.CheckVipRpc,
         //是否Vip
         isVip: false,
+        //使用固定的gasLimit估算手续费
+        gasLimit: '2000000',
+        //池子大小，USD计价
+        tokenUValue: null,
+        //是否烧gas模式
+        gasMode: false,
+        //价格上涨，百分比
+        priceUp: null,
+        //卖出百分比
+        saleRate: null,
     }
 
     constructor(props) {
@@ -71,7 +79,7 @@ class Swap extends Component {
     //页面销毁前
     componentWillUnmount() {
         WalletState.removeListener(this.handleAccountsChanged);
-        this.clearRefreshTokenPriceInterval();
+        this.clearCheckBuyInterval();
     }
 
     //监听链接钱包，配置变化
@@ -86,7 +94,7 @@ class Swap extends Component {
         let Tokens = chainConfig.Tokens;
         //链发生变化，一些配置信息要重置
         if (chainConfig.ChainId != this.state.chainConfig.chainId) {
-            this.clearRefreshTokenPriceInterval();
+            this.clearCheckBuyInterval();
             page.setState({
                 chain: wallet.chain,
                 chainConfig: chainConfig,
@@ -141,7 +149,7 @@ class Swap extends Component {
 
     //私钥输入框变化
     handlePrivateKeyChange(event) {
-        this.clearRefreshTokenPriceInterval();
+        this.clearCheckBuyInterval();
         let value = event.target.value;
         this.setState({
             privateKey: value,
@@ -259,7 +267,7 @@ class Swap extends Component {
 
     //要购买的代币合约输入框变化
     handleTokenOutChange(event) {
-        this.clearRefreshTokenPriceInterval();
+        this.clearCheckBuyInterval();
         let value = event.target.value;
         this.setState({
             tokenOut: value,
@@ -352,13 +360,18 @@ class Swap extends Component {
         //价格的精度，本来就需要处理USDT的精度，这个精度是在USDT精度的基础上多的，还要再处理一遍
         //价格小于0.{17个0}x时，才存在这个精度
         let priceDecimals = parseInt(tokenPriceResult[1]);
+        //池子中另一个代币的合约，一般是USDT或者主币对应的代币
         let pairOther = tokenPriceResult[2];
-        let tokenReserve = tokenPriceResult[3];
+        //池子里的代币数量
+        let tokenReserve = new BN(tokenPriceResult[3], 10);
+        //池子里代币的U价值
+        let tokenUValue = tokenReserve.mul(tokenPrice).div(toWei('1', tokenInfo.decimals)).div(toWei('1', priceDecimals));
 
         tokenInfo.tokenPrice = tokenPrice;
         tokenInfo.priceDecimals = priceDecimals;
         tokenInfo.pairOther = pairOther;
         tokenInfo.tokenReserve = tokenReserve;
+        tokenInfo.tokenUValue = tokenUValue;
         let realDecimals = this.state.USDTDetail.decimals + priceDecimals;
         tokenInfo.showTokenPrice = showFromWeiMore(tokenPrice, realDecimals, realDecimals);
         return tokenInfo;
@@ -366,7 +379,7 @@ class Swap extends Component {
 
     //监听兑换支付数量输入框变化
     handleAmountInChange(event) {
-        this.clearRefreshTokenPriceInterval();
+        this.clearCheckBuyInterval();
         let value = this.state.amountIn;
         if (event.target.validity.valid) {
             value = event.target.value;
@@ -374,23 +387,42 @@ class Swap extends Component {
         this.setState({ amountIn: value });
     }
 
-    //监听挂单价格输入框变化
-    handlePriceInputChange(event) {
-        this.clearRefreshTokenPriceInterval();
-        let value = this.state.priceInput;
+    //监听池子大小输入框变化
+    handleTokenUValueChange(event) {
+        this.clearCheckBuyInterval();
+        let value = this.state.tokenUValue;
         if (event.target.validity.valid) {
             value = event.target.value;
         }
-        this.setState({ priceInput: value });
+        this.setState({ tokenUValue: value });
     }
 
-    //监听滑点输入框变化
-    handleSligeChange(event) {
-        let value = this.state.slige;
+    //监听最小可得数量输入框变化
+    handleReceiveAmountChange(event) {
+        this.clearCheckBuyInterval();
+        let value = this.state.receiveAmount;
         if (event.target.validity.valid) {
             value = event.target.value;
         }
-        this.setState({ slige: value });
+        this.setState({ receiveAmount: value });
+    }
+
+    //监听价格上涨输入框变化
+    handlePriceUpChange(event) {
+        let value = this.state.priceUp;
+        if (event.target.validity.valid) {
+            value = event.target.value;
+        }
+        this.setState({ priceUp: value });
+    }
+
+    //监听卖出百分比输入框变化
+    handleSaleRateChange(event) {
+        let value = this.state.saleRate;
+        if (event.target.validity.valid) {
+            value = event.target.value;
+        }
+        this.setState({ saleRate: value });
     }
 
     async approve(tokenAddress, e) {
@@ -458,10 +490,18 @@ class Swap extends Component {
         }
     }
 
-    //刷新价格
-    _refreshTokenPriceIntervel = null;
-    async refreshTokenPrice(refreshStatus) {
-        this.clearRefreshTokenPriceInterval();
+    //购买后再卖出
+    async panicBuyingThenSell() {
+        this.panicBuying(true);
+    }
+
+    //刷新代币信息，在这里主要刷新代币池子大小
+    _refreshCheckBuyIntervel = null;
+    //抢购
+    async panicBuying(thenSell) {
+        this.state.thenSell = thenSell;
+        this.state.payAmount = new BN(0);
+        this.clearCheckBuyInterval();
         if (!this.state.wallet.privateKey) {
             toast.show('请输入私钥导入钱包');
             return;
@@ -478,71 +518,41 @@ class Swap extends Component {
             toast.show('请输入代币合约地址后点击确定按钮');
             return;
         }
-        if (!this.state.priceInput) {
-            toast.show('请输入挂单价格');
-            return;
-        }
         let wallet = this.state.wallet;
         //使用之后，再刷新会员状态
         this.checkVip(wallet);
-        if (refreshStatus == 'buy') {
-            let selectToken = this.state.selectToken;
-            if (selectToken.address == this.state.chainConfig.WETH) {
-                //主币余额不足
-                if (this.state.wallet.balance.lte(toWei(this.state.amountIn, selectToken.decimals))) {
-                    toast.show(selectToken.Symbol + '余额不足');
-                    return;
-                }
-            } else {
-                //USDT余额不足
-                if (this.state.wallet.usdtBalance.lt(toWei(this.state.amountIn, selectToken.decimals))) {
-                    toast.show('USDT余额不足');
-                    return;
-                }
-                await this.approve(this.state.USDTDetail.address);
-            }
-        } else if (refreshStatus == 'sell') {
-            if (this.state.wallet.tokenBalance.lt(toWei(this.state.amountIn, this.state.tokenOutInfo.decimals))) {
-                toast.show(this.state.tokenOutInfo.symbol + '余额不足');
+        let selectToken = this.state.selectToken;
+        if (selectToken.address == this.state.chainConfig.WETH) {
+            //主币余额不足
+            if (this.state.wallet.balance.lte(toWei(this.state.amountIn, selectToken.decimals))) {
+                toast.show(selectToken.Symbol + '余额不足');
                 return;
             }
-            await this.approve(this.state.tokenOutInfo.address);
+        } else {
+            //USDT余额不足
+            if (this.state.wallet.usdtBalance.lt(toWei(this.state.amountIn, selectToken.decimals))) {
+                toast.show('USDT余额不足');
+                return;
+            }
+            await this.approve(this.state.USDTDetail.address);
         }
         this.setState({
-            refreshStatus: refreshStatus,
+            refreshStatus: 'buy',
         })
-        this._refreshTokenPriceIntervel = setInterval(() => {
-            this._refreshTokenPrice();
+        this._refreshCheckBuyIntervel = setInterval(() => {
+            this._panicBuying();
         }, 3000);
     }
 
     checking = false;
-    //刷新代币价格
-    async _refreshTokenPrice() {
+    //刷新代币信息，这里主要代币池子大小
+    async _panicBuying() {
         if (this.checking) {
             return;
         }
         this.checking = true;
         try {
-            this.getWalletBalance(this.state.wallet);
-            let tokenInfo = await this.getTokenPrice(this.state.tokenOutInfo);
-            this.setState({
-                tokenOutInfo: tokenInfo,
-            })
-            let price = toWeiMore(tokenInfo.showTokenPrice);
-            if (price.isZero() && tokenInfo.priceDecimals == 0) {
-                return;
-            }
-            let priceInput = toWeiMore(this.state.priceInput);
-            console.log('priceInput', priceInput.toString());
-            console.log('price', price.toString());
-            if (this.state.refreshStatus == 'buy' && price.lte(priceInput)) {
-                this.clearRefreshTokenPriceInterval();
-                this._swap('buy');
-            } else if (this.state.refreshStatus == 'sell' && price.gte(priceInput)) {
-                this.clearRefreshTokenPriceInterval();
-                this._swap('sell');
-            }
+            this._buy();
         } catch (e) {
             console.log("e", e);
             toast.show(e.message);
@@ -551,63 +561,69 @@ class Swap extends Component {
         }
     }
 
-    clearRefreshTokenPriceInterval() {
+    clearCheckBuyInterval() {
         this.setState({ refreshStatus: null })
-        if (this._refreshTokenPriceIntervel) {
-            clearInterval(this._refreshTokenPriceIntervel);
-            this._refreshTokenPriceIntervel = null;
+        if (this._refreshCheckBuyIntervel) {
+            clearInterval(this._refreshCheckBuyIntervel);
+            this._refreshCheckBuyIntervel = null;
         }
     }
 
-    async _swap(buyOrSell) {
+    //购买过程
+    async _buy() {
         try {
-            loading.show();
             let options = {
                 timeout: 600000, // milliseconds,
                 headers: [{ name: 'Access-Control-Allow-Origin', value: '*' }]
             };
-
             let wallet = this.state.wallet;
+            //自动检测池子
+            let tokenInfo = await this.getTokenPrice(this.state.tokenOutInfo);
+            this.setState({
+                tokenOutInfo: tokenInfo,
+            })
+            //不是烧gas模式，才检测池子大小
+            if (!this.state.gasMode) {
+                //检测池子大小
+                let tokenUValueInput = this.state.tokenUValue;
+                if (tokenUValueInput) {
+                    tokenUValueInput = toWei(tokenUValueInput, this.state.USDTDetail.decimals);
+                    //池子大小，USD
+                    let tokenUValue = tokenInfo.tokenUValue;
+                    //池子不满足要求
+                    if (tokenUValue.lt(tokenUValueInput)) {
+                        return;
+                    }
+                }
+            }
+
             const myWeb3 = new Web3(new Web3.providers.HttpProvider(this.state.rpcUrl, options));
             const swapContract = new myWeb3.eth.Contract(SwapRouter_ABI, this.state.swapRouter);
-
             let amountIn;
             let path = [];
             //当前选择的交易币种
             let selectToken = this.state.selectToken;
             //当前代币合约信息
             let tokenOutInfo = this.state.tokenOutInfo;
-            if (buyOrSell == 'buy') {
-                //输入
-                amountIn = toWei(this.state.amountIn, selectToken.decimals);
-                //路径
-                path.push(selectToken.address);
-                if (tokenOutInfo.pairOther != selectToken.address) {
-                    path.push(tokenOutInfo.pairOther);
-                }
-                path.push(tokenOutInfo.address);
-            } else {//sell
-                //输入
-                amountIn = toWei(this.state.amountIn, tokenOutInfo.decimals);
-                //路径
-                path.push(tokenOutInfo.address);
-                if (tokenOutInfo.pairOther != selectToken.address) {
-                    path.push(tokenOutInfo.pairOther);
-                }
-                path.push(selectToken.address);
-            }
 
-            //预估能得到多少代币
-            let amountOuts = await swapContract.methods.getAmountsOut(amountIn, path).call();
-            let amountOut = new BN(amountOuts[amountOuts.length - 1], 10);
-            //滑点
-            let slige = this.state.slige;
-            if (!slige) {
-                slige = '20';
+            //输入
+            amountIn = toWei(this.state.amountIn, selectToken.decimals);
+            //路径
+            path.push(selectToken.address);
+            //选择的代币和池子代币不一样时
+            if (tokenOutInfo.pairOther != selectToken.address) {
+                path.push(tokenOutInfo.pairOther);
             }
-            slige = parseInt(parseFloat(slige) * 100);
-            //根据滑点计算得到的最小值
-            let amountOutMin = amountOut.mul(new BN(10000 - slige)).div(new BN(10000));
+            path.push(tokenOutInfo.address);
+
+
+            //最小可得代币数量
+            let amountOutMin = this.state.receiveAmount;
+            if (!amountOutMin) {
+                amountOutMin = new BN(0);
+            } else {
+                amountOutMin = toWei(amountOutMin, tokenOutInfo.decimals);
+            }
 
             var gasPrice = await myWeb3.eth.getGasPrice();
             gasPrice = new BN(gasPrice, 10);
@@ -622,35 +638,24 @@ class Swap extends Component {
 
             //Data
             let data;
-            if (buyOrSell == 'buy') {
-                //主币购买
-                if (selectToken.address == this.state.chainConfig.WETH) {
-                    data = swapContract.methods.swapExactETHForTokensSupportingFeeOnTransferTokens(
-                        amountOutMin, path, wallet.address, 1914823077
-                    ).encodeABI();
-                } else {
-                    data = swapContract.methods.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                        amountIn, amountOutMin, path, wallet.address, 1914823077
-                    ).encodeABI();
-                }
+            //主币购买
+            if (selectToken.address == this.state.chainConfig.WETH) {
+                data = swapContract.methods.swapExactETHForTokensSupportingFeeOnTransferTokens(
+                    amountOutMin, path, wallet.address, 1914823077
+                ).encodeABI();
             } else {
-                //卖得主币
-                if (selectToken.address == this.state.chainConfig.WETH) {
-                    data = swapContract.methods.swapExactTokensForETHSupportingFeeOnTransferTokens(
-                        amountIn, amountOutMin, path, wallet.address, 1914823077
-                    ).encodeABI();
-                } else {
-                    data = swapContract.methods.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                        amountIn, amountOutMin, path, wallet.address, 1914823077
-                    ).encodeABI();
-                }
+                data = swapContract.methods.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                    amountIn, amountOutMin, path, wallet.address, 1914823077
+                ).encodeABI();
             }
 
             var nonce = await myWeb3.eth.getTransactionCount(wallet.address, "pending");
             console.log("nonce", nonce);
 
-            let gas;
-            if (buyOrSell == 'buy') {
+            //不是烧gas模式，通过预估手续费，检测交易是否成功
+            if (!this.state.gasMode) {
+                console.log("!gasMode");
+                let gas;
                 //主币购买
                 if (selectToken.address == this.state.chainConfig.WETH) {
                     gas = await swapContract.methods.swapExactETHForTokensSupportingFeeOnTransferTokens(
@@ -661,24 +666,168 @@ class Swap extends Component {
                         amountIn, amountOutMin, path, wallet.address, 1914823077
                     ).estimateGas({ from: wallet.address });
                 }
-            } else {
-                //卖得主币
-                if (selectToken.address == this.state.chainConfig.WETH) {
-                    gas = await swapContract.methods.swapExactTokensForETHSupportingFeeOnTransferTokens(
-                        amountIn, amountOutMin, path, wallet.address, 1914823077
-                    ).estimateGas({ from: wallet.address });
-                } else {
-                    gas = await swapContract.methods.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                        amountIn, amountOutMin, path, wallet.address, 1914823077
-                    ).estimateGas({ from: wallet.address });
-                }
             }
-            gas = new BN(gas, 10).mul(new BN("150", 10)).div(new BN("100", 10));
+
+
+            //这里gasLimit直接用200万
+            let gas = new BN(this.state.gasLimit, 10);
 
             let value = '0';
-            if (buyOrSell == 'buy' && selectToken.address == this.state.chainConfig.WETH) {
+            if (selectToken.address == this.state.chainConfig.WETH) {
                 value = amountIn;
             }
+
+            var txParams = {
+                gas: Web3.utils.toHex(gas),
+                gasPrice: Web3.utils.toHex(gasPrice),
+                nonce: Web3.utils.toHex(nonce),
+                chainId: this.state.chainConfig.ChainId,
+                value: Web3.utils.toHex(value),
+                to: this.state.swapRouter,
+                data: data,
+                from: wallet.address,
+            };
+
+            //gas费
+            var fee = new BN(gas, 10).mul(new BN(gasPrice, 10));
+            console.log("fee", Web3.utils.fromWei(fee, "ether"));
+
+            await this._buyTx(myWeb3, wallet, txParams, amountIn);
+        } catch (e) {
+            console.log("e", e);
+            toast.show(e.message);
+        } finally {
+            loading.hide();
+        }
+    }
+
+    async _buyTx(myWeb3, wallet, txParams, amountIn) {
+        try {
+            //交易签名
+            let privateKey = wallet.privateKey;
+            var signedTx = await myWeb3.eth.accounts.signTransaction(txParams, privateKey);
+            //发起购买，删除定时器
+            this.clearCheckBuyInterval();
+            let transaction = await myWeb3.eth.sendSignedTransaction(signedTx.rawTransaction);
+            // 交易失败
+            if (!transaction.status) {
+                toast.show("购买失败");
+                return;
+            }
+
+            toast.show("购买成功");
+            //统计购买支付数量
+            this.state.payAmount = this.state.payAmount.add(amountIn);
+            await this.getWalletBalance(wallet);
+            //需要卖出
+            if (this.state.thenSell) {
+                this.checkSell();
+            }
+        } catch (e) {
+            console.log("e", e);
+        }
+    }
+
+    async checkSell() {
+        await this.approve(this.state.tokenOutInfo.address);
+        this.setState({
+            refreshStatus: 'sell',
+        })
+        this._refreshCheckBuyIntervel = setInterval(() => {
+            this._checkSell();
+        }, 3000);
+    }
+
+    async _checkSell() {
+        try {
+            let options = {
+                timeout: 600000, // milliseconds,
+                headers: [{ name: 'Access-Control-Allow-Origin', value: '*' }]
+            };
+
+            let wallet = this.state.wallet;
+            const myWeb3 = new Web3(new Web3.providers.HttpProvider(this.state.rpcUrl, options));
+            const swapContract = new myWeb3.eth.Contract(SwapRouter_ABI, this.state.swapRouter);
+
+            let path = [];
+            //当前选择的交易币种
+            let selectToken = this.state.selectToken;
+            //当前代币合约信息
+            let tokenOutInfo = this.state.tokenOutInfo;
+            //路径
+            path.push(tokenOutInfo.address);
+            if (tokenOutInfo.pairOther != selectToken.address) {
+                path.push(tokenOutInfo.pairOther);
+            }
+            path.push(selectToken.address);
+
+            //代币余额
+            let tokenBalance = this.state.wallet.tokenBalance;
+            //卖出比例
+            let saleRate = this.state.saleRate;
+            if(!saleRate){
+                saleRate = '50';
+            }
+            saleRate = new BN(parseInt(saleRate));
+            //卖出数量
+            let amountIn = tokenBalance.mul(saleRate).div(new BN(100));
+
+            //购买支付的数量
+            let payAmount = this.state.payAmount;
+            //根据价格上涨计算卖出代币得到总回报
+            let priceUp = this.state.priceUp;
+            if(!priceUp){
+                priceUp = '100';
+            }
+            priceUp = new BN(parseInt(priceUp)).add(new BN(100));
+            //默认是翻倍卖一半，算上滑点
+            //全部卖出得到的回报
+            let allSellReceiveAmount = payAmount.mul(priceUp).div(new BN(100));
+            //卖出比例该得到的回报
+            let amountOutMin = allSellReceiveAmount.mul(saleRate).div(new BN(100));
+
+            let data;
+            //卖得主币
+            if (selectToken.address == this.state.chainConfig.WETH) {
+                data = swapContract.methods.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                    amountIn, amountOutMin, path, wallet.address, 1914823077
+                ).encodeABI();
+            } else {
+                data = swapContract.methods.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                    amountIn, amountOutMin, path, wallet.address, 1914823077
+                ).encodeABI();
+            }
+
+            let gas;
+            //卖得主币
+            if (selectToken.address == this.state.chainConfig.WETH) {
+                gas = await swapContract.methods.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                    amountIn, amountOutMin, path, wallet.address, 1914823077
+                ).estimateGas({ from: wallet.address });
+            } else {
+                gas = await swapContract.methods.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                    amountIn, amountOutMin, path, wallet.address, 1914823077
+                ).estimateGas({ from: wallet.address });
+            }
+
+            var nonce = await myWeb3.eth.getTransactionCount(wallet.address, "pending");
+            console.log("nonce", nonce);
+
+            let value = '0';
+
+            //这里gasLimit直接用200万
+            gas = new BN(this.state.gasLimit, 10);
+
+            let gasPrice = await myWeb3.eth.getGasPrice();
+            gasPrice = new BN(gasPrice, 10);
+            //gas倍数
+            let gasMulti = this.state.gasMulti;
+            if (!gasMulti) {
+                gasMulti = 1;
+            }
+            gasMulti = parseFloat(gasMulti);
+            gasMulti = parseInt(gasMulti * 100);
+            gasPrice = gasPrice.mul(new BN(gasMulti)).div(new BN(100));
 
             var txParams = {
                 gas: Web3.utils.toHex(gas),
@@ -699,20 +848,18 @@ class Swap extends Component {
             var signedTx = await myWeb3.eth.accounts.signTransaction(txParams, privateKey);
             console.log("signedTx", signedTx);
             console.log("txParams", txParams);
+            this.clearCheckBuyInterval();
             let transaction = await myWeb3.eth.sendSignedTransaction(signedTx.rawTransaction);
             // 交易失败
             if (!transaction.status) {
-                toast.show("交易失败");
+                toast.show("卖出失败");
                 return;
             }
-            console.log("交易成功");
-            toast.show("交易成功");
+            console.log("卖出成功");
+            toast.show("卖出成功");
             this.getWalletBalance(wallet);
         } catch (e) {
             console.log("e", e);
-            toast.show(e.message);
-        } finally {
-            loading.hide();
         }
     }
 
@@ -724,9 +871,25 @@ class Swap extends Component {
         this.setState({ gasMulti: value });
     }
 
+    //选择是否烧gas模式
+    selGasMode() {
+        this.clearCheckBuyInterval();
+        this.setState({
+            gasMode: !this.state.gasMode,
+        })
+    }
+
+    //是否烧gas模式选择样式
+    getGasModeClass() {
+        if (this.state.gasMode) {
+            return 'Token-Item Item-Sel';
+        }
+        return 'Token-Item Item-Nor';
+    }
+
     //选择链
     selChain(index, e) {
-        this.clearRefreshTokenPriceInterval();
+        this.clearCheckBuyInterval();
         WalletState.changeChain(WalletState.configs.chains[index]);
     }
 
@@ -740,7 +903,7 @@ class Swap extends Component {
 
     //选择交易所
     selDex(index, e) {
-        this.clearRefreshTokenPriceInterval();
+        this.clearCheckBuyInterval();
         this.setState({
             swapRouter: this.state.chainConfig.Dexs[index].SwapRouter,
         })
@@ -756,7 +919,7 @@ class Swap extends Component {
 
     //选择交易币种
     selToken(index, e) {
-        this.clearRefreshTokenPriceInterval();
+        this.clearCheckBuyInterval();
         this.setState({
             selectToken: this.state.Tokens[index],
         })
@@ -833,24 +996,43 @@ class Swap extends Component {
                 <div className='LabelC Remark'>钱包余额：{this.state.wallet.showTokenBalance} {this.state.tokenOutInfo.symbol}</div>
 
                 <div className='flex TokenAddress ModuleTop'>
-                    <div className='Remark'>价格：</div>
-                    <input className="ModuleBg" type="text" value={this.state.priceInput} onChange={this.handlePriceInputChange.bind(this)} pattern="[0-9.]*" placeholder='请输入挂单价格' />
-                </div>
-
-                <div className='flex TokenAddress ModuleTop'>
-                    <div className='Remark'>数量：</div>
+                    <div className='Remark'>支付数量：</div>
                     <input className="ModuleBg" type="text" value={this.state.amountIn} onChange={this.handleAmountInChange.bind(this)} pattern="[0-9.]*" placeholder='请输入交易数量' />
                 </div>
 
                 <div className='flex TokenAddress ModuleTop'>
-                    <div className='Remark'>滑点：</div>
-                    <input className="ModuleBg" type="text" value={this.state.slige} onChange={this.handleSligeChange.bind(this)} pattern="[0-9.]*" placeholder='请输入交易滑点，默认20%' />
+                    <div className='Remark'>池子大小：</div>
+                    <input className="ModuleBg" type="text" value={this.state.tokenUValue} onChange={this.handleTokenUValueChange.bind(this)} pattern="[0-9.]*" placeholder='不填写默认为0，不检测池子' />
+                    USD
+                </div>
+
+                <div className='flex TokenAddress ModuleTop'>
+                    <div className='Remark'>gas倍数：</div>
+                    <input className="ModuleBg" type="text" value={this.state.gasMulti} onChange={this.handleGasMultiChange.bind(this)} pattern="[0-9.]*" placeholder='输入gas倍数，默认1倍' />
+                </div>
+
+                <div className='flex TokenAddress ModuleTop'>
+                    <div className='Remark'>最小可得：</div>
+                    <input className="ModuleBg" type="text" value={this.state.receiveAmount} onChange={this.handleReceiveAmountChange.bind(this)} pattern="[0-9.]*" placeholder='请输入最小可得，默认0' />
+                </div>
+
+                <div className='flex TokenAddress ModuleTop'>
+                    <div className='Remark'>烧gas模式：</div>
+                    <div className={this.getGasModeClass()} onClick={this.selGasMode.bind(this)}>
+                        <div className=''>{this.state.gasMode ? '是' : '否'}</div>
+                    </div>
+                </div>
+
+                <div className='flex TokenAddress ModuleTop'>
+                    <div className='Remark'>价格上涨：</div>
+                    <input className="ModuleBg" type="text" value={this.state.priceUp} onChange={this.handlePriceUpChange.bind(this)} pattern="[0-9]*" placeholder='请输入价格上涨百分比，默认值100%' />
                     %
                 </div>
 
                 <div className='flex TokenAddress ModuleTop'>
-                    <div className='Remark'>速度：</div>
-                    <input className="ModuleBg" type="text" value={this.state.gasMulti} onChange={this.handleGasMultiChange.bind(this)} pattern="[0-9.]*" placeholder='输入gas倍数，最少1倍' />
+                    <div className='Remark'>卖出比例：</div>
+                    <input className="ModuleBg" type="text" value={this.state.saleRate} onChange={this.handleSaleRateChange.bind(this)} pattern="[0-9]*" placeholder='请输入卖出百分比，默认值50%' />
+                    %
                 </div>
 
                 <div className='ModuleTop flex'>
@@ -859,15 +1041,15 @@ class Swap extends Component {
                 </div>
 
                 <div className='ModuleTop flex mb20'>
-                    <div className="approveUsdt" onClick={this.refreshTokenPrice.bind(this, 'buy')}>挂单买入{this.state.tokenOutInfo.symbol}</div>
-                    <div className="approveToken" onClick={this.refreshTokenPrice.bind(this, 'sell')}>挂单卖出{this.state.tokenOutInfo.symbol}</div>
+                    <div className="approveUsdt" onClick={this.panicBuying.bind(this, 'buy')}>抢购买入{this.state.tokenOutInfo.symbol}</div>
+                    <div className="approveToken" onClick={this.panicBuying.bind(this, 'sell')}>抢购后盈利卖出{this.state.tokenOutInfo.symbol}</div>
                 </div>
-                {this.state.refreshStatus && <div className='Contract Remark mb20' onClick={this.clearRefreshTokenPriceInterval.bind(this)}>
-                    挂单交易中...
+                {this.state.refreshStatus && <div className='Contract Remark mb20' onClick={this.clearCheckBuyInterval.bind(this)}>
+                    抢购交易中...
                 </div>}
             </div>
         );
     }
 }
 
-export default withNavigation(Swap);
+export default withNavigation(PanicBuying);

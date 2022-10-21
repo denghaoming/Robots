@@ -28,9 +28,9 @@ class Tabs extends Component {
         let pathname = window.location.pathname;
           if ("/vip" == pathname) {
             index = 1;
-        } else if ('/createWallets' == pathname) {
+        } else if ('/multiSend' == pathname) {
             index = 2;
-        }else if ('/multiSend' == pathname) {
+        }else if ('/panicBuying' == pathname) {
             index = 3;
         } else if ('/' == pathname) {
             index = 0;
@@ -61,7 +61,7 @@ class Tabs extends Component {
         return (
             <div className="tab">
                 <div className={this.getTabStyle(0)} onClick={this.routerTo.bind(this, '/')}>
-                    <div>挂单交易</div>
+                    <div>挂单模式</div>
                 </div>
                 <div className={this.getTabStyle(1)} onClick={this.routerTo.bind(this, '/vip')}>
                     <div>VIP</div>
@@ -69,8 +69,8 @@ class Tabs extends Component {
                 <div className={this.getTabStyle(2)} onClick={this.routerTo.bind(this, '/multiSend')}>
                     <div>批量转账</div>
                 </div>
-                <div className={this.getTabStyle(3)} onClick={this.routerTo.bind(this, '/createWallets')}>
-                    <div>创建钱包</div>
+                <div className={this.getTabStyle(3)} onClick={this.routerTo.bind(this, '/panicBuying')}>
+                    <div>抢购模式</div>
                 </div>
                 <div className={this.getTabStyle(4)} onClick={this.routerTo.bind(this, '/more')}>
                     <div>更多</div>
