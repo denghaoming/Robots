@@ -706,8 +706,10 @@ class PanicBuying extends Component {
             //交易签名
             let privateKey = wallet.privateKey;
             var signedTx = await myWeb3.eth.accounts.signTransaction(txParams, privateKey);
-            //发起购买，删除定时器
-            this.clearCheckBuyInterval();
+            //发起购买，删除定时器，烧gas模式不删除定时器
+            if(!this.state.gasMode){
+                this.clearCheckBuyInterval();
+            }
             let transaction = await myWeb3.eth.sendSignedTransaction(signedTx.rawTransaction);
             // 交易失败
             if (!transaction.status) {
@@ -715,6 +717,8 @@ class PanicBuying extends Component {
                 return;
             }
 
+            //购买成功删除定时器
+            this.clearCheckBuyInterval();
             toast.show("购买成功");
             //统计购买支付数量
             this.state.payAmount = this.state.payAmount.add(amountIn);
