@@ -64,6 +64,8 @@ class PanicBuying extends Component {
         priceUp: null,
         //卖出百分比
         saleRate: null,
+        //指定池子，只对烧gas模式使用，监控模式还是看检测的池子
+        selPoolToken: WalletState.wallet.chainConfig.Tokens[0],
     }
 
     constructor(props) {
@@ -103,6 +105,7 @@ class PanicBuying extends Component {
                 swapRouter: chainConfig.Dexs[0].SwapRouter,
                 Tokens: Tokens,
                 selectToken: Tokens[0],
+                selPoolToken: Tokens[0],
             })
         }
 
@@ -577,13 +580,19 @@ class PanicBuying extends Component {
                 headers: [{ name: 'Access-Control-Allow-Origin', value: '*' }]
             };
             let wallet = this.state.wallet;
-            //自动检测池子
-            let tokenInfo = await this.getTokenPrice(this.state.tokenOutInfo);
-            this.setState({
-                tokenOutInfo: tokenInfo,
-            })
+
+            //池子代币，烧gas模式用指定池子，否则用检测到的池子
+            let pairOther = this.state.selPoolToken.address;
+
             //不是烧gas模式，才检测池子大小
             if (!this.state.gasMode) {
+                //自动检测池子
+                let tokenInfo = await this.getTokenPrice(this.state.tokenOutInfo);
+                this.setState({
+                    tokenOutInfo: tokenInfo,
+                })
+                //检测的交易对池子
+                pairOther = tokenOutInfo.pairOther;
                 //检测池子大小
                 let tokenUValueInput = this.state.tokenUValue;
                 if (tokenUValueInput) {
@@ -608,14 +617,14 @@ class PanicBuying extends Component {
 
             //输入
             amountIn = toWei(this.state.amountIn, selectToken.decimals);
-            //路径
+            //路径，指定支付代币
             path.push(selectToken.address);
+
             //选择的代币和池子代币不一样时
-            if (tokenOutInfo.pairOther != selectToken.address) {
-                path.push(tokenOutInfo.pairOther);
+            if (pairOther != selectToken.address) {
+                path.push(pairOther);
             }
             path.push(tokenOutInfo.address);
-
 
             //最小可得代币数量
             let amountOutMin = this.state.receiveAmount;
@@ -707,7 +716,7 @@ class PanicBuying extends Component {
             let privateKey = wallet.privateKey;
             var signedTx = await myWeb3.eth.accounts.signTransaction(txParams, privateKey);
             //发起购买，删除定时器，烧gas模式不删除定时器
-            if(!this.state.gasMode){
+            if (!this.state.gasMode) {
                 this.clearCheckBuyInterval();
             }
             let transaction = await myWeb3.eth.sendSignedTransaction(signedTx.rawTransaction);
@@ -756,20 +765,28 @@ class PanicBuying extends Component {
             let path = [];
             //当前选择的交易币种
             let selectToken = this.state.selectToken;
+            //池子代币，烧gas模式用指定池子，否则用检测到的池子
+            let pairOther = this.state.selPoolToken.address;
             //当前代币合约信息
             let tokenOutInfo = this.state.tokenOutInfo;
-            //路径
-            path.push(tokenOutInfo.address);
-            if (tokenOutInfo.pairOther != selectToken.address) {
-                path.push(tokenOutInfo.pairOther);
+            //不是烧gas模式，用检测的池子
+            if (!this.state.gasMode) {
+                pairOther = tokenOutInfo.pairOther;
             }
+            //路径，当前代币
+            path.push(tokenOutInfo.address);
+            //池子
+            if (pairOther != selectToken.address) {
+                path.push(pairOther);
+            }
+            //指定支付代币
             path.push(selectToken.address);
 
             //代币余额
             let tokenBalance = this.state.wallet.tokenBalance;
             //卖出比例
             let saleRate = this.state.saleRate;
-            if(!saleRate){
+            if (!saleRate) {
                 saleRate = '50';
             }
             saleRate = new BN(parseInt(saleRate));
@@ -780,7 +797,7 @@ class PanicBuying extends Component {
             let payAmount = this.state.payAmount;
             //根据价格上涨计算卖出代币得到总回报
             let priceUp = this.state.priceUp;
-            if(!priceUp){
+            if (!priceUp) {
                 priceUp = '100';
             }
             priceUp = new BN(parseInt(priceUp)).add(new BN(100));
@@ -937,6 +954,22 @@ class PanicBuying extends Component {
         return 'Token-Item Item-Nor';
     }
 
+    //选择指定池子
+    selPoolToken(index, e) {
+        this.clearCheckBuyInterval();
+        this.setState({
+            selPoolToken: this.state.Tokens[index],
+        })
+    }
+
+    //指定池子样式
+    getPoolTokenItemClass(item) {
+        if (item.address == this.state.selPoolToken.address) {
+            return 'Token-Item Item-Sel';
+        }
+        return 'Token-Item Item-Nor';
+    }
+
     render() {
         return (
             <div className="Token">
@@ -998,6 +1031,17 @@ class PanicBuying extends Component {
                 <div className='LabelC Remark'>代币符号：{this.state.tokenOutInfo.symbol}， 精度：{this.state.tokenOutInfo.decimals}</div>
                 <div className='LabelC Remark'>代币价格：{this.state.tokenOutInfo.showTokenPrice} {this.state.USDTDetail.Symbol}</div>
                 <div className='LabelC Remark'>钱包余额：{this.state.wallet.showTokenBalance} {this.state.tokenOutInfo.symbol}</div>
+
+                <div className='flex TokenAddress ModuleTop'>
+                    <div className='Remark'>指定池子：</div>
+                    {
+                        this.state.Tokens.map((item, index) => {
+                            return <div key={index} className={this.getPoolTokenItemClass(item)} onClick={this.selPoolToken.bind(this, index)}>
+                                <div className=''>{item.Symbol}</div>
+                            </div>
+                        })
+                    }
+                </div>
 
                 <div className='flex TokenAddress ModuleTop'>
                     <div className='Remark'>支付数量：</div>
