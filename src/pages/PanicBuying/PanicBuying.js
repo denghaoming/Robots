@@ -592,7 +592,7 @@ class PanicBuying extends Component {
                     tokenOutInfo: tokenInfo,
                 })
                 //检测的交易对池子
-                pairOther = tokenOutInfo.pairOther;
+                pairOther = tokenInfo.pairOther;
                 //检测池子大小
                 let tokenUValueInput = this.state.tokenUValue;
                 if (tokenUValueInput) {
