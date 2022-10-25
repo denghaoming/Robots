@@ -6,7 +6,7 @@ class WalletState {
         //VipSale合约调用的Rpc，BSC链的RPC，如果Rpc不可用会影响功能，需要设置为可修改的
         CheckVipRpc:'https://bsc-dataseed1.binance.org/',
         //支持的链
-        chains: ['Heco', 'BSC','Ethereum'],
+        chains: ['Heco', 'BSC','Ethereum','ETHW'],
         //HT链配置信息
         Heco: {
             chain: 'Heco',
@@ -107,6 +107,33 @@ class WalletState {
                 },],
             Common: '0x1453027045D7545260e309A82f48b123c32f5838',
             MultiSend:'0xd85495924f70046723Ab6BE850a22B15dF9b2c53',
+        },
+        //ETHW链配置信息
+        ETHW: {
+            chain: 'ETHW',
+            ChainId: 10001,
+            Symbol: 'ETHW',
+            RPC: 'https://mainnet.ethereumpow.org/',
+            Browser: 'https://www.oklink.com/en/ethw/',
+            USDT: '0x2AD7868CA212135C6119FD7AD1Ce51CFc5702892',
+            WETH: '0x7Bf88d2c0e32dE92CdaF2D43CcDc23e8Edfd5990',
+            Tokens: [{
+                Symbol: 'ETHW',
+                address: "0x7Bf88d2c0e32dE92CdaF2D43CcDc23e8Edfd5990",
+                decimals: 18,
+            }, {
+                Symbol: 'USDT',
+                address: "0x2AD7868CA212135C6119FD7AD1Ce51CFc5702892",
+                decimals: 6,
+            }],
+            Dexs: [
+                {
+                    name: 'LFGSwap',
+                    SwapRouter: '0x4f381d5fF61ad1D0eC355fEd2Ac4000eA1e67854',
+                    logo: '',
+                }],
+            Common: '0x1453027045D7545260e309A82f48b123c32f5838',
+            MultiSend:'0x59886a35796e33890dEc08D3468F6C8DCfEa4ea9',
         },
     }
     wallet = {
