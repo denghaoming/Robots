@@ -1089,8 +1089,8 @@ class PanicBuying extends Component {
                 </div>
 
                 <div className='ModuleTop flex mb20'>
-                    <div className="approveUsdt" onClick={this.panicBuying.bind(this, 'buy')}>抢购买入{this.state.tokenOutInfo.symbol}</div>
-                    <div className="approveToken" onClick={this.panicBuying.bind(this, 'sell')}>抢购后盈利卖出{this.state.tokenOutInfo.symbol}</div>
+                    <div className="approveUsdt" onClick={this.panicBuying.bind(this, false)}>抢购买入{this.state.tokenOutInfo.symbol}</div>
+                    <div className="approveToken" onClick={this.panicBuying.bind(this, true)}>抢购后盈利卖出{this.state.tokenOutInfo.symbol}</div>
                 </div>
                 {this.state.refreshStatus && <div className='Contract Remark mb20' onClick={this.clearCheckBuyInterval.bind(this)}>
                     抢购交易中...
