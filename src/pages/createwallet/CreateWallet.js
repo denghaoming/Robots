@@ -49,44 +49,38 @@ class CreateWallet extends Component {
             return;
         }
         loading.show();
-        let wallets = [];
-        let address = [];
+        let num = parseInt(this.state.num);
+        setTimeout(() => {
+            this._createWallet(num);
+        }, 30);
+    }
+
+    async _createWallet(num) {
+        let walletList = [];
+        let addressList = [];
         try {
-            const web3 = new Web3(Web3.givenProvider);
-            let num = parseInt(this.state.num);
             for (let i = 0; i < num; i++) {
-                var account = web3.eth.accounts.create();
-                wallets.push({ address: account.address, privateKey: account.privateKey });
-                address.push({ address: account.address });
+                //拿到生成的钱包对象
+                let wallet = ethers.Wallet.createRandom();
+                console.log("wallet：", wallet)
+                //获取助记词对象
+                let mnemonic = wallet.mnemonic;
+                //助记词
+                let phrase = mnemonic.phrase;
+                //获取钱包的私钥
+                let privateKey = wallet.privateKey;
+                //获取钱包地址
+                let address = wallet.address;
+                walletList.push({ mnemonic: phrase, privateKey: privateKey, address: address });
+                addressList.push({ address: address });
             }
-            this.setState({ wallets: wallets, address: address });
+            this.setState({ wallets: walletList, address: addressList });
         } catch (e) {
             console.log("e", e);
             toast.show(e.message);
         } finally {
             loading.hide();
         }
-    }
-
-    async createWallet2() {
-        //拿到生成的钱包信息
-        var wallet = ethers.Wallet.createRandom();
-
-        //获取助记词
-        var mnemonic = wallet.mnemonic;
-        console.log("钱包助记词：", mnemonic)
-
-        //获取path
-        var path = wallet.path;
-        console.log("钱包path：", path)
-
-        //获取钱包的私钥
-        var privateKey = wallet.privateKey;
-        console.log("钱包私钥：", privateKey)
-
-        //获取钱包地址
-        var address = wallet.address;
-        console.log("钱包地址：", address)
     }
 
     render() {
@@ -98,10 +92,7 @@ class CreateWallet extends Component {
                 <div className="button ModuleTop" onClick={this.createWallet}>
                     创建钱包
                 </div>
-                <div className="button ModuleTop" onClick={this.createWallet2.bind(this)}>
-                    创建钱包2
-                </div>
-                
+
                 <CSVLink className="button ModuleTop" data={this.state.wallets} filename={this.filename}>
                     导出钱包
                 </CSVLink>
@@ -110,9 +101,10 @@ class CreateWallet extends Component {
                 </CSVLink>
                 {
                     this.state.wallets.map((item, index) => {
-                        return <div key={index} className="mt10 Item flex">
-                            <div className='Index'>{index + 1}.</div>
-                            <div className='text flex-1'> {item.address}</div>
+                        return <div key={index} className="mt15 Item column">
+                            <div className='text'>{index + 1}. 助记词：{item.mnemonic}</div>
+                            <div className='text mt5 ml15'>私钥：{item.privateKey}</div>
+                            <div className='text mt5 ml15'>地址：{item.address}</div>
                         </div>
                     })
                 }
