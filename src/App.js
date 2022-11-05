@@ -13,6 +13,7 @@ import Collect from './pages/Collect/Collect'
 import Vip from './pages/Vip/Vip'
 import MultiSend from './pages/MultiSend/MultiSend'
 import PanicBuying from './pages/PanicBuying/PanicBuying'
+import Presale from './pages/Presale/Presale'
 
 class App extends Component {
     state = { account: null, chainId: null, shortAccount: null }
@@ -82,6 +83,7 @@ class App extends Component {
                             <Route path="/collect" exact element={<Collect />}></Route>
                             <Route path="/multiSend" exact element={<MultiSend />}></Route>
                             <Route path="/panicBuying" exact element={<PanicBuying />}></Route>
+                            <Route path="/presale" exact element={<Presale />}></Route>
                         </Routes>
                     </div>
                     <Tabs></Tabs>
