@@ -71,6 +71,8 @@ class More extends Component {
 
                 <div className="button ModuleTop" onClick={this.routerTo.bind(this, '/createWallets')}>批量创建钱包</div>
 
+                <div className="button ModuleTop" onClick={this.routerTo.bind(this, '/presale')}>预售抢购</div>
+
                 <div className="button ModuleTop" onClick={this.routerTo.bind(this, '/collect')}>归集钱包</div>
 
                 <div className='QQ'>
