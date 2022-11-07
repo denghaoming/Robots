@@ -7,6 +7,7 @@ import Web3 from 'web3'
 import { ERC20_ABI } from '../../abi/erc20';
 import { PinkSale_ABI } from '../../abi/PinkSale_ABI';
 import { PinkSaleTest_ABI } from '../../abi/PinkSaleTest_ABI';
+import { DxSale_ABI } from '../../abi/DxSale_ABI';
 import { VipSale_ABI } from '../../abi/VipSale_ABI';
 import '../Token/Token.css'
 
@@ -26,17 +27,20 @@ class Presale extends Component {
                 rpc: 'https://data-seed-prebsc-1-s3.binance.org:8545/',
                 symbol: 'tBNB',
                 chain: 'BSC-t',
+                DxSaleInfoAddress: '0xbd3e37ff1427dce2b7c7dfbc843aa9a42672c529',
             }, {
                 chainId: 56,
                 rpc: 'https://bsc-dataseed1.binance.org/',
                 symbol: 'BNB',
                 chain: 'BSC',
+                DxSaleInfoAddress: '0x7100c01f668a5b407db6a77821ddb035561f25b8',
             }],
         chainIndex: 0,
         chainSymbol: 'tBNB',
         //当前预售平台
         salePlatforms: [
             { name: 'PinkSale' },
+            { name: 'DxSale' },
         ],
         platformIndex: 0,
         //输入框rpc
@@ -73,20 +77,6 @@ class Presale extends Component {
     componentDidMount() {
         this.handleAccountsChanged();
         WalletState.onStateChanged(this.handleAccountsChanged);
-        this.parseAbi();
-    }
-
-    parseAbi() {
-        let abi = PinkSale_ABI;
-        let objLen = abi.length;
-        let index = 1;
-        for (let i = 0; i < objLen; ++i) {
-            let obj = abi[i];
-            if (obj.type == 'function') {
-                console.log(index, obj.name);
-                index++;
-            }
-        }
     }
 
     //页面销毁前
@@ -238,6 +228,12 @@ class Presale extends Component {
             toast.show('请输入预售链接');
             return;
         }
+        let salePlatform = this.state.salePlatforms[this.state.platformIndex];
+        //DxSale 预售平台处理
+        if ('DxSale' == salePlatform.name) {
+            this.confirmDxSaleUrl(saleUrl);
+            return;
+        }
         let saleAddress = this.getPinkSaleAddress(saleUrl);
         console.log('saleAddress', saleAddress);
         if (!saleAddress) {
@@ -306,10 +302,96 @@ class Presale extends Component {
         }
     }
 
+    //确认DxsaleId
+    async confirmDxSaleUrl(saleUrl) {
+        let saleId = this.getDxSaleId(saleUrl);
+        console.log('saleId', saleId);
+        if (!saleId) {
+            toast.show('请输入正确的预售链接');
+            return;
+        }
+        loading.show();
+        try {
+            let options = {
+                timeout: 600000, // milliseconds,
+                headers: [{ name: 'Access-Control-Allow-Origin', value: '*' }]
+            };
+            const myWeb3 = new Web3(new Web3.providers.HttpProvider(this.state.rpcUrl, options));
+            let chain = this.state.chains[this.state.chainIndex];
+            let dxSaleInfoAddress = chain.DxSaleInfoAddress;
+            let saleInfoContract = new myWeb3.eth.Contract(DxSale_ABI, dxSaleInfoAddress);
+            //创建者地址
+            let owner = await saleInfoContract.methods.presaleOwners(saleId).call();
+            console.log('owner', owner);
+            //预售信息合约里获取预售信息，包括代币合约
+            let poolSettings = await saleInfoContract.methods.presales(owner).call({});
+            console.log('poolSettings', poolSettings);
+            //代币合约
+            let tokenAddress = poolSettings[3];
+            //预售合约
+            let saleAddress = poolSettings[4];
+            console.log('tokenAddress', tokenAddress);
+            //开始时间
+            let startTime = parseInt(poolSettings[7]);
+            //结束时间
+            let endTime = parseInt(poolSettings[8]);
+            //代币合约
+            let tokenContract = new myWeb3.eth.Contract(ERC20_ABI, tokenAddress);
+            //代币名称
+            let tokenName = await tokenContract.methods.name().call();
+            console.log('tokenName', tokenName);
+            //代币符号
+            let tokenSymbol = await tokenContract.methods.symbol().call();
+            console.log('tokenSymbol', tokenSymbol);
+
+            let saleInfo = {
+                saleAddress: saleAddress,
+                startTime: this.formatTime(startTime),
+                endTime: this.formatTime(endTime),
+                tokenAddress: tokenAddress,
+                tokenName: tokenName,
+                tokenSymbol: tokenSymbol,
+                owner: owner,
+            }
+            this.setState({
+                saleInfo: saleInfo,
+            })
+
+            //获取钱包余额
+            if (this.state.wallet.privateKey) {
+                this.getWalletBalance(this.state.wallet);
+            }
+        } catch (e) {
+            console.log("e", e);
+            toast.show(e.message);
+        } finally {
+            loading.hide();
+        }
+    }
+
+    //获取Dx预售Id
+    getDxSaleId(saleUrl) {
+        let saleId = null;
+        let scan_url = saleUrl.split("?");
+        if (2 == scan_url.length) {
+            scan_url = scan_url[1];
+            let strs = scan_url.split("&");
+            for (let x in strs) {
+                let arr = strs[x].split("=");
+                //链接里有saleID
+                if ("saleID" == arr[0] && arr[1]) {
+                    return arr[1];
+                }
+            }
+        }
+        return saleId;
+    }
+
     formatTime(timestamp) {
         return moment(new BN(timestamp, 10).mul(new BN(1000)).toNumber()).format("YYYY-MM-DD HH:mm:ss");
     }
 
+    //获取粉红预售合约地址
     getPinkSaleAddress(saleUrl) {
         let saleAddress = null;
         let pathUrl;
@@ -395,6 +477,12 @@ class Presale extends Component {
 
     //购买过程
     async _buy() {
+        let salePlatform = this.state.salePlatforms[this.state.platformIndex];
+        //DxSale 预售平台处理
+        if ('DxSale' == salePlatform.name) {
+            this._buyDxSale();
+            return;
+        }
         try {
             let options = {
                 timeout: 600000, // milliseconds,
@@ -430,7 +518,7 @@ class Presale extends Component {
             if (!this.state.gasMode) {
                 console.log("!gasMode");
                 let gas = await saleContract.methods.contribute().estimateGas({ from: wallet.address, value: amountIn });
-                console.log("!gasMode",gas);
+                console.log("!gasMode", gas);
             }
 
             //这里gasLimit直接用30万
@@ -446,6 +534,77 @@ class Presale extends Component {
                 value: Web3.utils.toHex(value),
                 to: this.state.saleInfo.saleAddress,
                 data: data,
+                from: wallet.address,
+            };
+
+            //gas费
+            var fee = new BN(gas, 10).mul(new BN(gasPrice, 10));
+            console.log("fee", Web3.utils.fromWei(fee, "ether"));
+
+            await this._buyTx(myWeb3, wallet, txParams);
+        } catch (e) {
+            console.log("e", e);
+            toast.show(e.message);
+        } finally {
+            loading.hide();
+        }
+    }
+
+    //抢购Dxsale
+    async _buyDxSale() {
+        try {
+            let options = {
+                timeout: 600000, // milliseconds,
+                headers: [{ name: 'Access-Control-Allow-Origin', value: '*' }]
+            };
+            let wallet = this.state.wallet;
+            const myWeb3 = new Web3(new Web3.providers.HttpProvider(this.state.rpcUrl, options));
+
+            let amountIn;
+            //输入
+            amountIn = toWei(this.state.amountIn, 18);
+
+            var gasPrice = await myWeb3.eth.getGasPrice();
+            gasPrice = new BN(gasPrice, 10);
+            //gas倍数
+            let gasMulti = this.state.gasMulti;
+            if (!gasMulti) {
+                gasMulti = 1;
+            }
+            gasMulti = parseFloat(gasMulti);
+            gasMulti = parseInt(gasMulti * 100);
+            gasPrice = gasPrice.mul(new BN(gasMulti)).div(new BN(100));
+
+            //钱包发起交易的nonce
+            var nonce = await myWeb3.eth.getTransactionCount(wallet.address, "pending");
+            console.log("nonce", nonce);
+
+            //Dxsale预售方式是直接往预售合约地址转账BNB
+            let to = this.state.saleInfo.saleAddress;
+            let value = amountIn;
+
+            //不是烧gas模式，通过预估手续费，检测交易是否成功
+            if (!this.state.gasMode) {
+                console.log("!gasMode");
+                let gas = await myWeb3.eth.estimateGas({
+                    from: wallet.address,
+                    to: to,
+                    value: Web3.utils.toHex(value),
+                });
+                console.log("!gasMode", gas);
+            }
+
+            //这里gasLimit直接用30万
+            let gas = new BN(this.state.gasLimit, 10);
+
+            //交易的to，是预售合约地址
+            var txParams = {
+                gas: Web3.utils.toHex(gas),
+                gasPrice: Web3.utils.toHex(gasPrice),
+                nonce: Web3.utils.toHex(nonce),
+                chainId: this.state.chains[this.state.chainIndex].chainId,
+                value: Web3.utils.toHex(value),
+                to: this.state.saleInfo.saleAddress,
                 from: wallet.address,
             };
 
