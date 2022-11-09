@@ -5,7 +5,7 @@ import loading from '../../components/loading/Loading';
 import toast from '../../components/toast/toast';
 import Web3 from 'web3'
 import { ERC20_ABI } from '../../abi/erc20';
-import { PinkSale_ABI } from '../../abi/PinkSale_ABI';
+// import { PinkSale_ABI } from '../../abi/PinkSale_ABI';
 import { PinkSaleTest_ABI } from '../../abi/PinkSaleTest_ABI';
 import { DxSale_ABI } from '../../abi/DxSale_ABI';
 import { VipSale_ABI } from '../../abi/VipSale_ABI';
@@ -251,7 +251,7 @@ class Presale extends Component {
             if (this.state.chainSymbol == 'tBNB') {
                 saleContract = new myWeb3.eth.Contract(PinkSaleTest_ABI, saleAddress);
             } else {
-                saleContract = new myWeb3.eth.Contract(PinkSale_ABI, saleAddress);
+                saleContract = new myWeb3.eth.Contract(PinkSaleTest_ABI, saleAddress);
 
             }
             //创建者地址
@@ -491,7 +491,7 @@ class Presale extends Component {
             let wallet = this.state.wallet;
 
             const myWeb3 = new Web3(new Web3.providers.HttpProvider(this.state.rpcUrl, options));
-            const saleContract = new myWeb3.eth.Contract(PinkSale_ABI, this.state.saleInfo.saleAddress);
+            const saleContract = new myWeb3.eth.Contract(PinkSaleTest_ABI, this.state.saleInfo.saleAddress);
             let amountIn;
             //输入
             amountIn = toWei(this.state.amountIn, 18);
