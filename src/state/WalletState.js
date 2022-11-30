@@ -4,9 +4,36 @@ class WalletState {
         //VipSale购买合约，部署在BSC链上，购买需要连接BSC钱包购买，检测，任何链都可以检测
         VipSale: "0x43eDECdf132f5b863f97848E6b11587bfF2F5699",
         //VipSale合约调用的Rpc，BSC链的RPC，如果Rpc不可用会影响功能，需要设置为可修改的
-        CheckVipRpc:'https://bsc-dataseed1.binance.org/',
+        CheckVipRpc: 'https://bsc-dataseed1.binance.org/',
         //支持的链
-        chains: ['Heco', 'BSC','Ethereum','ETHW'],
+        chains: ['Heco', 'BSC', 'Ethereum', 'ETHW', 'FON'],
+        //HT链配置信息
+        FON: {
+            chain: 'FON',
+            ChainId: 201022,
+            Symbol: 'FON',
+            RPC: 'https://fsc-dataseed2.fonscan.io/',
+            Browser: 'https://fonscan.io/',
+            USDT: '0x9a9eD7440a3850c4D7240c9FcA8B7C96802615f0',
+            WETH: '0xb582fD9d0D5C3515EEB6b02fF2d6eE0b6E45E7A7',
+            Tokens: [{
+                Symbol: 'FON',
+                address: "0xb582fD9d0D5C3515EEB6b02fF2d6eE0b6E45E7A7",
+                decimals: 18,
+            }, {
+                Symbol: 'USDT',
+                address: "0x9a9eD7440a3850c4D7240c9FcA8B7C96802615f0",
+                decimals: 18,
+            }],
+            Dexs: [
+                {
+                    name: 'rosswap',
+                    SwapRouter: '0x5Df615972954257133d7A0d5fFD68CddD31033d2',
+                    logo: '',
+                },],
+            Common: '0x1453027045D7545260e309A82f48b123c32f5838',
+            MultiSend: '0x4b860FCC0B41283132f4792AD91038DC211831C1',
+        },
         //HT链配置信息
         Heco: {
             chain: 'Heco',
@@ -40,7 +67,7 @@ class WalletState {
                     logo: '',
                 },],
             Common: '0x5e43d6dBdF6CEa7dbdBfF21168f1C8fCcF57161B',
-            MultiSend:'0x1453027045D7545260e309A82f48b123c32f5838',
+            MultiSend: '0x1453027045D7545260e309A82f48b123c32f5838',
         },
         //BSC链配置信息
         BSC: {
@@ -71,7 +98,7 @@ class WalletState {
                     logo: '',
                 }],
             Common: '0x4b860FCC0B41283132f4792AD91038DC211831C1',
-            MultiSend:'0xBE9f4f99E4FE188428188763EcD53715d713D226',
+            MultiSend: '0xBE9f4f99E4FE188428188763EcD53715d713D226',
         },
         //Ethereum链配置信息
         Ethereum: {
@@ -106,7 +133,7 @@ class WalletState {
                     logo: '',
                 },],
             Common: '0x1453027045D7545260e309A82f48b123c32f5838',
-            MultiSend:'0xd85495924f70046723Ab6BE850a22B15dF9b2c53',
+            MultiSend: '0xd85495924f70046723Ab6BE850a22B15dF9b2c53',
         },
         //ETHW链配置信息
         ETHW: {
@@ -133,7 +160,7 @@ class WalletState {
                     logo: '',
                 }],
             Common: '0x1453027045D7545260e309A82f48b123c32f5838',
-            MultiSend:'0x59886a35796e33890dEc08D3468F6C8DCfEa4ea9',
+            MultiSend: '0x59886a35796e33890dEc08D3468F6C8DCfEa4ea9',
         },
     }
     wallet = {
