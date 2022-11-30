@@ -7,7 +7,7 @@ class WalletState {
         CheckVipRpc: 'https://bsc-dataseed1.binance.org/',
         //支持的链
         chains: ['Heco', 'BSC', 'Ethereum', 'ETHW', 'FON'],
-        //HT链配置信息
+        //FON链配置信息
         FON: {
             chain: 'FON',
             ChainId: 201022,
