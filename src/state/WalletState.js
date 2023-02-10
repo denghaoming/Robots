@@ -2,9 +2,12 @@ import Web3 from 'web3'
 class WalletState {
     configs = {
         //VipSale购买合约，部署在BSC链上，购买需要连接BSC钱包购买，检测，任何链都可以检测
-        VipSale: "0x43eDECdf132f5b863f97848E6b11587bfF2F5699",
+        //测试火币链 
+        VipSale: "0x31c2023BDe3cFdAB391d01B80ACD164D05AfC11d",//Heco
         //VipSale合约调用的Rpc，BSC链的RPC，如果Rpc不可用会影响功能，需要设置为可修改的
-        CheckVipRpc: 'https://bsc-dataseed1.binance.org/',
+        //测试火币链
+        CheckVipRpc: 'https://http-mainnet.hecochain.com/',//heco
+        //CheckVipRpc: 'https://bsc-dataseed1.binance.org/',//bsc
         //支持的链
         chains: ['Heco', 'BSC', 'Ethereum', 'ETHW', 'FON'],
         //FON链配置信息

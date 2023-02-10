@@ -1,25 +1,28 @@
 import React, { Component } from 'react'
 import { withNavigation } from '../../hocs'
-import WalletState, { MAX_INT } from '../../state/WalletState';
+import WalletState, { MAX_INT, ZERO_ADDRESS } from '../../state/WalletState';
 import loading from '../../components/loading/Loading';
 import toast from '../../components/toast/toast';
 import Web3 from 'web3'
-import { ERC20_ABI } from '../../abi/erc20';
 import { VipSale_ABI } from '../../abi/VipSale_ABI';
 import '../Token/Token.css'
 
 import Header from '../Header';
-import { showFromWei, toWei, showFromWeiMore, toWeiMore } from '../../utils';
+import { showFromWei } from '../../utils';
 import BN from 'bn.js'
 import moment from 'moment';
+import copy from 'copy-to-clipboard';
 
 class Vip extends Component {
     state = {
         chainId: '',
         account: '',
         sales: [],
-        vipChainId: 56,
-        errChainTip: '请连接BSC链钱包购买VIP',
+        // vipChainId: 56,
+        // errChainTip: '请连接BSC链钱包购买VIP',
+        //测试火币链
+        vipChainId: 128,
+        errChainTip: '请连接Heco链钱包购买VIP',
         index: -1,
     }
 
@@ -75,37 +78,28 @@ class Vip extends Component {
             const saleContract = new web3.eth.Contract(VipSale_ABI, WalletState.configs.VipSale);
             //获取基本信息
             let baseInfo = await saleContract.methods.shopInfo().call();
-            //USDT合约地址
-            let usdtAddress = baseInfo[0];
-            //USDT精度
-            let usdtDecimals = parseInt(baseInfo[1]);
-            //USDT符号
-            let usdtSymbol = baseInfo[2];
-            //代币合约地址
-            let tokenAddress = baseInfo[3];
-            //代币精度
-            let tokenDecimals = parseInt(baseInfo[4]);
-            //代币符号
-            let tokenSymbol = baseInfo[5];
+            //价格精度
+            let priceDecimals = parseInt(baseInfo[0]);
+            //价格符号
+            let priceSymbol = baseInfo[1];
             //当前区块时间
-            let blockTime = parseInt(baseInfo[6]);
-            //共收入多少代币
-            let totalToken = baseInfo[7];
+            let blockTime = parseInt(baseInfo[2]);
+            //共收入多少
+            let totalAmount = baseInfo[3];
+            //邀请奖励共多少
+            let totalInviteAmount = baseInfo[4];
 
             //销售列表
             const allSales = await saleContract.methods.allSales().call();
-            //价格(USDT计价)
-            let priceUsdts = allSales[0];
-            //价格(代币计价)
-            let priceTokens = allSales[1];
+            //价格
+            let prices = allSales[0];
             //有效期
-            let durations = allSales[2];
+            let durations = allSales[1];
 
             let sales = [];
-            let len = priceUsdts.length;
+            let len = prices.length;
             for (let i = 0; i < len; ++i) {
-                let priceUsdt = priceUsdts[i];
-                let priceToken = priceTokens[i];
+                let price = prices[i];
                 let duration = durations[i];
                 let showDuration;
                 if (new BN(duration, 10).eq(new BN(MAX_INT, 10))) {
@@ -114,22 +108,16 @@ class Vip extends Component {
                     showDuration = (parseInt(duration) / 86400) + '天';
                 }
                 sales.push({
-                    priceUsdt: priceUsdt,
-                    showPriceUsdt: showFromWei(priceUsdt, usdtDecimals, 2),
-                    priceToken: priceToken,
-                    showPriceToken: showFromWei(priceToken, tokenDecimals, 4),
+                    price: price,
+                    showPrice: showFromWei(price, priceDecimals, 6),
                     duration: duration,
                     showDuration: showDuration,
                 })
             }
 
             this.setState({
-                usdtAddress: usdtAddress,
-                usdtDecimals: usdtDecimals,
-                usdtSymbol: usdtSymbol,
-                tokenAddress: tokenAddress,
-                tokenDecimals: tokenDecimals,
-                tokenSymbol: tokenSymbol,
+                priceDecimals: priceDecimals,
+                priceSymbol: priceSymbol,
                 blockTime: blockTime,
                 sales: sales,
             });
@@ -142,10 +130,8 @@ class Vip extends Component {
                 let amount = userInfo[0];
                 //Vip过期时间
                 let endTime = userInfo[1];
-                //代币余额
-                let tokenBalance = userInfo[2];
-                //代币授权额度
-                let tokenAllowance = userInfo[3];
+                //余额
+                let balance = userInfo[2];
 
                 let showEndTime;
                 if (new BN(endTime, 10).eq(new BN(MAX_INT, 10))) {
@@ -158,12 +144,11 @@ class Vip extends Component {
 
                 this.setState({
                     amount: amount,
-                    showAmount: showFromWei(amount, tokenDecimals, 4),
+                    showAmount: showFromWei(amount, priceDecimals, 6),
                     endTime: endTime,
                     showEndTime: showEndTime,
-                    tokenBalance: tokenBalance,
-                    showTokenBalance: showFromWei(tokenBalance, tokenDecimals, 4),
-                    tokenAllowance: tokenAllowance,
+                    balance: balance,
+                    showBalance: showFromWei(balance, priceDecimals, 6),
                 });
             }
         } catch (e) {
@@ -205,32 +190,23 @@ class Vip extends Component {
             return;
         }
         let sale = this.state.sales[index];
-        //需要的代币价格
-        let price = new BN(sale.priceToken, 10);
-        //因为是U本位代币数量，需要加个滑点，别人交易会影响价格变动
-        let maxPrice = price.mul(new BN(105)).div(new BN(100));
-        let tokenBalance = new BN(this.state.tokenBalance, 10);
-        if (tokenBalance.lt(maxPrice)) {
-            toast.show(this.state.tokenSymbol + '余额不足');
+        //需要的价格
+        let price = new BN(sale.price, 10);
+        let balance = new BN(this.state.balance, 10);
+        if (balance.lt(price)) {
+            toast.show(this.state.priceSymbol + '余额不足');
             return;
         }
         loading.show();
         try {
             const web3 = new Web3(Web3.givenProvider);
-            let approvalNum = new BN(this.state.tokenAllowance, 10);;
-            //代币授权额度不够了，需要重新授权
-            if (approvalNum.lt(maxPrice)) {
-                const tokenContract = new web3.eth.Contract(ERC20_ABI, this.state.tokenAddress);
-                var transaction = await tokenContract.methods.approve(WalletState.configs.VipSale, MAX_INT).send({ from: account });
-                if (!transaction.status) {
-                    toast.show('授权失败');
-                    return;
-                }
-            }
-
             const saleContract = new web3.eth.Contract(VipSale_ABI, WalletState.configs.VipSale);
-            var estimateGas = await saleContract.methods.buy(index, maxPrice).estimateGas({ from: account });
-            var transaction = await saleContract.methods.buy(index, maxPrice).send({ from: account });
+            let invitor = this.getRef();
+            if (!invitor) {
+                invitor = ZERO_ADDRESS;
+            }
+            var estimateGas = await saleContract.methods.buy(index, invitor).estimateGas({ from: account, value: price });
+            var transaction = await saleContract.methods.buy(index, invitor).send({ from: account, value: price });
             if (transaction.status) {
                 toast.show("购买Vip成功");
             } else {
@@ -244,6 +220,46 @@ class Vip extends Component {
         }
     }
 
+    //获取邀请人
+    getRef() {
+        //先从链接获取，如果有，直接使用
+        var url = window.location.href;
+        var obj = new Object();
+        var scan_url = url.split("?");
+        if (2 == scan_url.length) {
+            scan_url = scan_url[1];
+            var strs = scan_url.split("&");
+            for (var x in strs) {
+                var arr = strs[x].split("=");
+                obj[arr[0]] = arr[1];
+                //链接里有邀请人
+                if ("ref" == arr[0] && arr[1]) {
+                    return arr[1];
+                }
+            }
+        }
+        //从浏览器缓存获取，这里可能部分浏览器不支持
+        var storage = window.localStorage;
+        if (storage) {
+            return storage["ref"];
+        }
+        return null;
+    }
+
+    invite() {
+        if (WalletState.wallet.account) {
+            var url = window.location.href;
+            url = url.split("?")[0];
+            let inviteLink = url + "?ref=" + WalletState.wallet.account;
+            if (copy(inviteLink)) {
+                toast.show("邀请链接已复制")
+            } else {
+                toast.show("邀请失败")
+            }
+        }
+
+    }
+
     render() {
         return (
             <div className="Token">
@@ -254,8 +270,7 @@ class Vip extends Component {
                         this.state.sales.map((item, index) => {
                             return <div key={index} className={this.getVipItemClass(index)} onClick={this.selVip.bind(this, index)}>
                                 <div className=''>{item.showDuration}</div>
-                                <div className='mt5'>{item.showPriceUsdt}{this.state.usdtSymbol}</div>
-                                <div className=''>{item.showPriceToken}{this.state.tokenSymbol}</div>
+                                <div className='mt5'>{item.showPrice}{this.state.priceSymbol}</div>
                             </div>
                         })
                     }
@@ -264,9 +279,11 @@ class Vip extends Component {
                 <div className="button ModuleTop mb20" onClick={this.buyVip.bind(this)}>购买VIP</div>
 
                 <div className='LabelContainer mb20'>
-                    <div className='Label'>余额：{this.state.showTokenBalance} {this.state.tokenSymbol}</div>
+                    <div className='Label'>余额：{this.state.showBalance} {this.state.priceSymbol}</div>
                     <div className='Label'>VIP有效期：{this.state.showEndTime}</div>
                 </div>
+
+                <div className="button ModuleTop mb20 mt30" onClick={this.invite.bind(this)}>邀请好友</div>
 
             </div>
         );
