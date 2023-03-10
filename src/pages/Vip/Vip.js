@@ -78,6 +78,7 @@ class Vip extends Component {
             const saleContract = new web3.eth.Contract(VipSale_ABI, WalletState.configs.VipSale);
             //获取基本信息
             let baseInfo = await saleContract.methods.shopInfo().call();
+            console.log('baseInfo',baseInfo);
             //价格精度
             let priceDecimals = parseInt(baseInfo[0]);
             //价格符号
@@ -88,6 +89,8 @@ class Vip extends Component {
             let totalAmount = baseInfo[3];
             //邀请奖励共多少
             let totalInviteAmount = baseInfo[4];
+            //永久会员数量
+            let maxVipNum = parseInt(baseInfo[5]);
 
             //销售列表
             const allSales = await saleContract.methods.allSales().call();
@@ -149,6 +152,9 @@ class Vip extends Component {
                     showEndTime: showEndTime,
                     balance: balance,
                     showBalance: showFromWei(balance, priceDecimals, 6),
+                    totalAmount:showFromWei(totalAmount,priceDecimals,6),
+                    totalInviteAmount:showFromWei(totalInviteAmount,priceDecimals,6),
+                    maxVipNum:maxVipNum,
                 });
             }
         } catch (e) {
@@ -264,7 +270,11 @@ class Vip extends Component {
         return (
             <div className="Token">
                 <Header></Header>
-                <div className=''></div>
+                <div className='LabelContainer mb20'>
+                    <div className='Label'>累计收入：{this.state.totalAmount} {this.state.priceSymbol}</div>
+                    <div className='Label'>累计发放邀请奖励：{this.state.totalInviteAmount} {this.state.priceSymbol}</div>
+                    <div className='Label'>永久会员数：{this.state.maxVipNum}</div>
+                </div>
                 <div className='flex ModuleTop'>
                     {
                         this.state.sales.map((item, index) => {

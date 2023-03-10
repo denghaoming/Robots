@@ -3,7 +3,7 @@ class WalletState {
     configs = {
         //VipSale购买合约，部署在BSC链上，购买需要连接BSC钱包购买，检测，任何链都可以检测
         //测试火币链 
-        VipSale: "0x31c2023BDe3cFdAB391d01B80ACD164D05AfC11d",//Heco
+        VipSale: "0x6a181e2d585984Cd32ed9E12cdF9ae14E710c140",//Heco
         //VipSale合约调用的Rpc，BSC链的RPC，如果Rpc不可用会影响功能，需要设置为可修改的
         //测试火币链
         CheckVipRpc: 'https://http-mainnet.hecochain.com/',//heco
