@@ -135,6 +135,9 @@ class Vip extends Component {
                 let endTime = userInfo[1];
                 //余额
                 let balance = userInfo[2];
+                //是否超级会员，三代奖励
+                let isSuperVip = userInfo[4];
+
 
                 let showEndTime;
                 if (new BN(endTime, 10).eq(new BN(MAX_INT, 10))) {
@@ -155,6 +158,7 @@ class Vip extends Component {
                     totalAmount:showFromWei(totalAmount,priceDecimals,6),
                     totalInviteAmount:showFromWei(totalInviteAmount,priceDecimals,6),
                     maxVipNum:maxVipNum,
+                    isSuperVip:isSuperVip
                 });
             }
         } catch (e) {
@@ -291,6 +295,7 @@ class Vip extends Component {
                 <div className='LabelContainer mb20'>
                     <div className='Label'>余额：{this.state.showBalance} {this.state.priceSymbol}</div>
                     <div className='Label'>VIP有效期：{this.state.showEndTime}</div>
+                    <div className='Label'>奖励级别：{this.state.isSuperVip?"三代奖励":"一代奖励"}</div>
                 </div>
 
                 <div className="button ModuleTop mb20 mt30" onClick={this.invite.bind(this)}>邀请好友</div>
